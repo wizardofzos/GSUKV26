@@ -50,9 +50,7 @@ jobs:
         pip install xmi-reader
 
     - name: Generate XMIT
-      run: |
-        mkdir -p $RUNNER_TEMP/PDS
-        python .github/scripts/generate_xmit.py $RUNNER_TEMP/PDS
+      run: python .github/scripts/generate_xmit.py
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
