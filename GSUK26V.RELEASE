@@ -1,176 +1,152 @@
--------------------------------------------------------------------------------
-                       G S U K 2 6 V   R E L E A S E
-              AUTOMATED XMIT PACKAGING VIA GITHUB ACTIONS
--------------------------------------------------------------------------------
-REPO    : https://github.com/wizardofzos/GSUKV26
-PURPOSE : DEMONSTRATE AUTOMATED Z/OS XMIT BUILDS FROM A GITHUB REPOSITORY
-FORMAT  : SEQUENTIAL FILE  LRECL=79  RECFM=F
--------------------------------------------------------------------------------
+# GSUK26V — Automated XMIT Packaging via GitHub Actions
 
--------------------------------------------------------------------------------
-                         1. WHAT DOES THIS REPO DO
--------------------------------------------------------------------------------
+**Repo:** https://github.com/wizardofzos/GSUKV26
 
-EVERY PUSH TO THE MASTER BRANCH TRIGGERS AN AUTOMATED BUILD THAT:
+Every push to `master` automatically builds a z/OS XMIT file and
+publishes it as a GitHub release — no manual tagging needed.
 
-  1. COMPUTES THE NEXT VERSION TAG (E.G. V1.0 -> V1.1 -> V1.2)
-  2. CREATES AND PUSHES THAT TAG TO GITHUB
-  3. PACKAGES THE PDS FOLDER INTO A STANDARD Z/OS XMIT FILE
-  4. PUBLISHES A GITHUB RELEASE WITH THE XMIT AS A DOWNLOADABLE ASSET
+---
 
-NO MANUAL TAGGING REQUIRED AFTER THE INITIAL V1.0.
-TO BUMP THE MAJOR VERSION (E.G. V2.0), CREATE THAT TAG MANUALLY IN GITHUB.
+## 1. What does this repo do?
 
--------------------------------------------------------------------------------
-                      2. WORKFLOW: .GITHUB/WORKFLOWS/PROCESS.YML
--------------------------------------------------------------------------------
+Every push to `master` triggers a pipeline that:
 
-TRIGGER:
-  ON: PUSH TO BRANCH MASTER
+1. Computes the next version tag (e.g. `v1.0` → `v1.1` → `v1.2`)
+2. Creates and pushes that tag to GitHub
+3. Packages the PDS folder into a standard z/OS XMIT file
+4. Publishes a GitHub release with the XMIT as a downloadable asset
 
-  ANY COMMIT PUSHED TO MASTER AUTOMATICALLY STARTS THE PIPELINE.
-  NO MANUAL INTERVENTION OR TAG CREATION NEEDED.
+No manual tagging required after the initial `v1.0`.
+To bump the major version (e.g. `v2.0`), create that tag manually.
 
--------------------------------------------------------------------------------
-STEP 1 OF 7 - CHECKOUT
--------------------------------------------------------------------------------
+---
 
-  ACTION  : ACTIONS/CHECKOUT@V6
-  OPTION  : FETCH-DEPTH: 0
+## 2. Workflow: `.github/workflows/process.yml`
 
-  CLONES THE FULL REPOSITORY INCLUDING ALL TAGS AND HISTORY.
-  FETCH-DEPTH 0 IS REQUIRED SO THAT THE NEXT STEP CAN SEE ALL EXISTING
-  VERSION TAGS. WITHOUT IT, GIT TAG WOULD RETURN NOTHING AND THE VERSION
-  LOGIC WOULD ALWAYS RESET TO V1.0.
+**Trigger:** push to branch `master`
 
--------------------------------------------------------------------------------
-STEP 2 OF 7 - COMPUTE NEXT VERSION
--------------------------------------------------------------------------------
+Any commit pushed to master automatically starts the pipeline.
 
-  SHELL SCRIPT EMBEDDED IN THE WORKFLOW (BASH).
-  OUTPUT: STEPS.VERSION.OUTPUTS.TAG  (E.G. V1.3)
+### Step 1 — Checkout
 
-  HOW IT WORKS:
+- Action: `actions/checkout@v6`
+- Option: `fetch-depth: 0`
 
-    1. LIST ALL TAGS MATCHING V<MAJOR>.<MINOR> SORTED NEWEST FIRST:
-         GIT TAG --LIST 'V*.*' --SORT=-VERSION:REFNAME | HEAD -N 1
+Clones the full repository including all tags and history.
+`fetch-depth: 0` is required so the next step can see all existing
+version tags. Without it, `git tag` returns nothing and the version
+logic would always reset to `v1.0`.
 
-    2. IF NO TAG EXISTS -> USE V1.0 AS THE STARTING POINT.
+### Step 2 — Compute next version
 
-    3. IF A TAG EXISTS (E.G. V1.2):
-         SPLIT ON '.' TO GET MAJOR=1 AND MINOR=2
-         ADD 1 TO MINOR -> NEXT TAG = V1.3
+Embedded bash script. Output: `steps.version.outputs.tag`
 
-    4. WRITE THE RESULT TO GITHUB_OUTPUT SO LATER STEPS CAN USE IT:
-         ECHO "TAG=V1.3" >> $GITHUB_OUTPUT
+How it works:
 
--------------------------------------------------------------------------------
-STEP 3 OF 7 - CREATE AND PUSH TAG
--------------------------------------------------------------------------------
+1. List all tags matching `v<MAJOR>.<MINOR>`, sorted newest first:
+   ```
+   git tag --list 'v*.*' --sort=-version:refname | head -n 1
+   ```
+2. If no tag exists → use `v1.0` as the starting point.
+3. If a tag exists (e.g. `v1.2`): split on `.`, increment minor
+   → next tag = `v1.3`
+4. Write the result to `$GITHUB_OUTPUT` for later steps to consume.
 
-  CONFIGURES THE GIT USER AS GITHUB-ACTIONS[BOT] SO THE COMMIT AUTHOR
-  SHOWS AS THE AUTOMATION ACCOUNT RATHER THAN A REAL USER.
+### Step 3 — Create and push tag
 
-  THEN:
-    GIT TAG V1.3
-    GIT PUSH ORIGIN V1.3
+Configures git as `github-actions[bot]`, then:
 
-  THIS IS WHAT MAKES THE RELEASE APPEAR AS A PROPER TAGGED VERSION IN THE
-  GITHUB REPOSITORY. THE TAG VALUE COMES FROM STEP 2 VIA:
-    ${{ STEPS.VERSION.OUTPUTS.TAG }}
+```
+git tag v1.3
+git push origin v1.3
+```
 
--------------------------------------------------------------------------------
-STEP 4 OF 7 - SET UP PYTHON 3.11
--------------------------------------------------------------------------------
+This makes the release appear as a proper tagged version in the
+repo. The tag value comes from Step 2 via
+`${{ steps.version.outputs.tag }}`.
 
-  ACTION  : ACTIONS/SETUP-PYTHON@V5
-  VERSION : 3.11
+### Step 4 — Set up Python 3.11
 
-  INSTALLS A CLEAN PYTHON 3.11 RUNTIME ON THE UBUNTU RUNNER.
-  REQUIRED BECAUSE THE XMIT GENERATION SCRIPT IS WRITTEN IN PYTHON.
+- Action: `actions/setup-python@v5`
 
--------------------------------------------------------------------------------
-STEP 5 OF 7 - INSTALL DEPENDENCIES
--------------------------------------------------------------------------------
+Installs a clean Python 3.11 runtime on the Ubuntu runner,
+required for the XMIT generation script.
 
-  UPGRADES PIP TO THE LATEST VERSION THEN INSTALLS:
-    XMI-READER  - PYTHON LIBRARY FOR READING AND CREATING Z/OS XMIT FILES
+### Step 5 — Install dependencies
 
-  SEE: HTTPS://XMI.READTHEDOCS.IO
+Upgrades pip then installs:
 
--------------------------------------------------------------------------------
-STEP 6 OF 7 - GENERATE XMIT
--------------------------------------------------------------------------------
+- `xmi-reader` — Python library for reading and creating z/OS
+  XMIT files. See https://xmi.readthedocs.io
 
-  RUNS: PYTHON .GITHUB/SCRIPTS/GENERATE_XMIT.PY
+### Step 6 — Generate XMIT
 
-  SEE SECTION 3 FOR A FULL EXPLANATION OF WHAT THIS SCRIPT DOES.
-  OUTPUT FILE GSUK26V.XMIT IS WRITTEN TO THE REPOSITORY ROOT ON THE RUNNER.
+Runs `.github/scripts/generate_xmit.py`.
 
--------------------------------------------------------------------------------
-STEP 7 OF 7 - CREATE RELEASE
--------------------------------------------------------------------------------
+See section 3 for details. Output file `GSUK26V.XMIT` is written
+to the repository root on the runner.
 
-  ACTION  : SOFTPROPS/ACTION-GH-RELEASE@V2
+### Step 7 — Create release
 
-  PUBLISHES A GITHUB RELEASE USING THE TAG FROM STEP 2/3.
+- Action: `softprops/action-gh-release@v2`
 
-  PARAMETERS:
-    TAG_NAME  : THE AUTO-COMPUTED VERSION TAG (E.G. V1.3)
-    NAME      : SAME AS TAG - USED AS THE RELEASE TITLE ON GITHUB
-    BODY_PATH : GSUK26V.RELEASE  (THIS FILE - SHOWN AS RELEASE DESCRIPTION)
-    FILES     : GSUK26V.XMIT     (ATTACHED AS DOWNLOADABLE RELEASE ASSET)
+Publishes a GitHub release using the tag from steps 2 and 3.
 
-  AFTER THIS STEP THE RELEASE IS PUBLICLY VISIBLE ON GITHUB WITH THE XMIT
-  FILE READY FOR DOWNLOAD.
+| Parameter   | Value                                         |
+|-------------|-----------------------------------------------|
+| `tag_name`  | Auto-computed version tag (e.g. `v1.3`)       |
+| `name`      | Same as tag — used as the release title       |
+| `body_path` | `GSUK26V.RELEASE` (this file)                 |
+| `files`     | `GSUK26V.XMIT` — attached as release asset   |
 
--------------------------------------------------------------------------------
-                   3. SCRIPT: .GITHUB/SCRIPTS/GENERATE_XMIT.PY
--------------------------------------------------------------------------------
+---
 
-LANGUAGE : PYTHON 3.11
-LIBRARY  : XMI-READER (PIP INSTALL XMI-READER)
+## 3. Script: `.github/scripts/generate_xmit.py`
 
-WHAT IT DOES:
+- **Language:** Python 3.11
+- **Library:** `xmi-reader`
 
-  INPUT  : GSUK26V.PDS  (DIRECTORY REPRESENTING A PARTITIONED DATA SET)
-  OUTPUT : GSUK26V.XMIT (STANDARD Z/OS XMIT / NETDATA FILE)
+| | |
+|---|---|
+| Input | `GSUK26V.PDS` — folder representing a Partitioned Data Set |
+| Output | `GSUK26V.XMIT` — standard z/OS XMIT / NETDATA file |
 
-  CALLS CREATE_XMI() FROM THE XMI LIBRARY:
-    FROM_USER : WIZARD
-    FROM_NODE : GITHUB
+Calls `create_xmi()` with `from_user=WIZARD`, `from_node=GITHUB`.
 
-THE PDS FOLDER CONTAINS ALL MEMBERS THAT WILL BE PACKAGED INTO THE XMIT.
-EACH FILE IN THE FOLDER BECOMES A MEMBER OF THE PARTITIONED DATA SET.
+Each file inside the `GSUK26V.PDS` folder becomes a member of
+the packaged PDS in the XMIT.
 
--------------------------------------------------------------------------------
-                         4. RELEASE ASSETS
--------------------------------------------------------------------------------
+---
 
-EACH RELEASE CONTAINS ONE ASSET:
+## 4. Release assets
 
-  GSUK26V.XMIT
-    A STANDARD Z/OS NETDATA / XMIT FILE CONTAINING THE GSUK26V PDS.
-    CAN BE RECEIVED ON Z/OS WITH THE RECEIVE COMMAND:
-      TSO RECEIVE INDATASET('HLQ.GSUK26V.XMIT')
-    OR OPENED LOCALLY WITH THE XMI-READER PYTHON LIBRARY.
+Each release contains one asset: **`GSUK26V.XMIT`**
 
--------------------------------------------------------------------------------
-                         5. VERSIONING SCHEME
--------------------------------------------------------------------------------
+A standard z/OS NETDATA / XMIT file containing the GSUK26V PDS.
 
-  V<MAJOR>.<MINOR>
+Receive it on z/OS with:
+```
+TSO RECEIVE INDATASET('HLQ.GSUK26V.XMIT')
+```
+Or open it locally with the `xmi-reader` Python library.
 
-  MINOR  : INCREMENTED AUTOMATICALLY ON EVERY PUSH TO MASTER
-  MAJOR  : INCREMENTED MANUALLY BY PUSHING A NEW VMAJOR.0 TAG
+---
 
-  EXAMPLES:
-    V1.0  -> INITIAL RELEASE (CREATED MANUALLY)
-    V1.1  -> FIRST AUTO-BUILD AFTER V1.0
-    V1.2  -> SECOND AUTO-BUILD
-    V2.0  -> MANUALLY TRIGGERED MAJOR RELEASE
-    V2.1  -> NEXT AUTO-BUILD AFTER V2.0
+## 5. Versioning scheme
 
--------------------------------------------------------------------------------
-                            :: END OF RELEASE NOTES ::
--------------------------------------------------------------------------------
+Format: `v<MAJOR>.<MINOR>`
+
+| Part    | How it changes                              |
+|---------|---------------------------------------------|
+| `MINOR` | Incremented automatically on every push     |
+| `MAJOR` | Incremented manually by pushing `vX.0` tag  |
+
+Examples:
+
+| Tag    | How                              |
+|--------|----------------------------------|
+| `v1.0` | Initial release — created manually |
+| `v1.1` | First auto-build after `v1.0`    |
+| `v1.2` | Second auto-build                |
+| `v2.0` | Manual major release             |
+| `v2.1` | Next auto-build after `v2.0`     |
