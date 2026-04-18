@@ -1,8 +1,176 @@
-# GSUK26V
-XMIT Unpacked Bringing Mainframe Transmit Files into Modern Automation Pipelines
+-------------------------------------------------------------------------------
+                       G S U K 2 6 V   R E L E A S E
+              AUTOMATED XMIT PACKAGING VIA GITHUB ACTIONS
+-------------------------------------------------------------------------------
+REPO    : https://github.com/wizardofzos/GSUKV26
+PURPOSE : DEMONSTRATE AUTOMATED Z/OS XMIT BUILDS FROM A GITHUB REPOSITORY
+FORMAT  : SEQUENTIAL FILE  LRECL=79  RECFM=F
+-------------------------------------------------------------------------------
 
-This Demo repo shows as an example on how to build an XMI file automagically
-after every push to master.
+-------------------------------------------------------------------------------
+                         1. WHAT DOES THIS REPO DO
+-------------------------------------------------------------------------------
 
+EVERY PUSH TO THE MASTER BRANCH TRIGGERS AN AUTOMATED BUILD THAT:
 
+  1. COMPUTES THE NEXT VERSION TAG (E.G. V1.0 -> V1.1 -> V1.2)
+  2. CREATES AND PUSHES THAT TAG TO GITHUB
+  3. PACKAGES THE PDS FOLDER INTO A STANDARD Z/OS XMIT FILE
+  4. PUBLISHES A GITHUB RELEASE WITH THE XMIT AS A DOWNLOADABLE ASSET
 
+NO MANUAL TAGGING REQUIRED AFTER THE INITIAL V1.0.
+TO BUMP THE MAJOR VERSION (E.G. V2.0), CREATE THAT TAG MANUALLY IN GITHUB.
+
+-------------------------------------------------------------------------------
+                      2. WORKFLOW: .GITHUB/WORKFLOWS/PROCESS.YML
+-------------------------------------------------------------------------------
+
+TRIGGER:
+  ON: PUSH TO BRANCH MASTER
+
+  ANY COMMIT PUSHED TO MASTER AUTOMATICALLY STARTS THE PIPELINE.
+  NO MANUAL INTERVENTION OR TAG CREATION NEEDED.
+
+-------------------------------------------------------------------------------
+STEP 1 OF 7 - CHECKOUT
+-------------------------------------------------------------------------------
+
+  ACTION  : ACTIONS/CHECKOUT@V6
+  OPTION  : FETCH-DEPTH: 0
+
+  CLONES THE FULL REPOSITORY INCLUDING ALL TAGS AND HISTORY.
+  FETCH-DEPTH 0 IS REQUIRED SO THAT THE NEXT STEP CAN SEE ALL EXISTING
+  VERSION TAGS. WITHOUT IT, GIT TAG WOULD RETURN NOTHING AND THE VERSION
+  LOGIC WOULD ALWAYS RESET TO V1.0.
+
+-------------------------------------------------------------------------------
+STEP 2 OF 7 - COMPUTE NEXT VERSION
+-------------------------------------------------------------------------------
+
+  SHELL SCRIPT EMBEDDED IN THE WORKFLOW (BASH).
+  OUTPUT: STEPS.VERSION.OUTPUTS.TAG  (E.G. V1.3)
+
+  HOW IT WORKS:
+
+    1. LIST ALL TAGS MATCHING V<MAJOR>.<MINOR> SORTED NEWEST FIRST:
+         GIT TAG --LIST 'V*.*' --SORT=-VERSION:REFNAME | HEAD -N 1
+
+    2. IF NO TAG EXISTS -> USE V1.0 AS THE STARTING POINT.
+
+    3. IF A TAG EXISTS (E.G. V1.2):
+         SPLIT ON '.' TO GET MAJOR=1 AND MINOR=2
+         ADD 1 TO MINOR -> NEXT TAG = V1.3
+
+    4. WRITE THE RESULT TO GITHUB_OUTPUT SO LATER STEPS CAN USE IT:
+         ECHO "TAG=V1.3" >> $GITHUB_OUTPUT
+
+-------------------------------------------------------------------------------
+STEP 3 OF 7 - CREATE AND PUSH TAG
+-------------------------------------------------------------------------------
+
+  CONFIGURES THE GIT USER AS GITHUB-ACTIONS[BOT] SO THE COMMIT AUTHOR
+  SHOWS AS THE AUTOMATION ACCOUNT RATHER THAN A REAL USER.
+
+  THEN:
+    GIT TAG V1.3
+    GIT PUSH ORIGIN V1.3
+
+  THIS IS WHAT MAKES THE RELEASE APPEAR AS A PROPER TAGGED VERSION IN THE
+  GITHUB REPOSITORY. THE TAG VALUE COMES FROM STEP 2 VIA:
+    ${{ STEPS.VERSION.OUTPUTS.TAG }}
+
+-------------------------------------------------------------------------------
+STEP 4 OF 7 - SET UP PYTHON 3.11
+-------------------------------------------------------------------------------
+
+  ACTION  : ACTIONS/SETUP-PYTHON@V5
+  VERSION : 3.11
+
+  INSTALLS A CLEAN PYTHON 3.11 RUNTIME ON THE UBUNTU RUNNER.
+  REQUIRED BECAUSE THE XMIT GENERATION SCRIPT IS WRITTEN IN PYTHON.
+
+-------------------------------------------------------------------------------
+STEP 5 OF 7 - INSTALL DEPENDENCIES
+-------------------------------------------------------------------------------
+
+  UPGRADES PIP TO THE LATEST VERSION THEN INSTALLS:
+    XMI-READER  - PYTHON LIBRARY FOR READING AND CREATING Z/OS XMIT FILES
+
+  SEE: HTTPS://XMI.READTHEDOCS.IO
+
+-------------------------------------------------------------------------------
+STEP 6 OF 7 - GENERATE XMIT
+-------------------------------------------------------------------------------
+
+  RUNS: PYTHON .GITHUB/SCRIPTS/GENERATE_XMIT.PY
+
+  SEE SECTION 3 FOR A FULL EXPLANATION OF WHAT THIS SCRIPT DOES.
+  OUTPUT FILE GSUK26V.XMIT IS WRITTEN TO THE REPOSITORY ROOT ON THE RUNNER.
+
+-------------------------------------------------------------------------------
+STEP 7 OF 7 - CREATE RELEASE
+-------------------------------------------------------------------------------
+
+  ACTION  : SOFTPROPS/ACTION-GH-RELEASE@V2
+
+  PUBLISHES A GITHUB RELEASE USING THE TAG FROM STEP 2/3.
+
+  PARAMETERS:
+    TAG_NAME  : THE AUTO-COMPUTED VERSION TAG (E.G. V1.3)
+    NAME      : SAME AS TAG - USED AS THE RELEASE TITLE ON GITHUB
+    BODY_PATH : GSUK26V.RELEASE  (THIS FILE - SHOWN AS RELEASE DESCRIPTION)
+    FILES     : GSUK26V.XMIT     (ATTACHED AS DOWNLOADABLE RELEASE ASSET)
+
+  AFTER THIS STEP THE RELEASE IS PUBLICLY VISIBLE ON GITHUB WITH THE XMIT
+  FILE READY FOR DOWNLOAD.
+
+-------------------------------------------------------------------------------
+                   3. SCRIPT: .GITHUB/SCRIPTS/GENERATE_XMIT.PY
+-------------------------------------------------------------------------------
+
+LANGUAGE : PYTHON 3.11
+LIBRARY  : XMI-READER (PIP INSTALL XMI-READER)
+
+WHAT IT DOES:
+
+  INPUT  : GSUK26V.PDS  (DIRECTORY REPRESENTING A PARTITIONED DATA SET)
+  OUTPUT : GSUK26V.XMIT (STANDARD Z/OS XMIT / NETDATA FILE)
+
+  CALLS CREATE_XMI() FROM THE XMI LIBRARY:
+    FROM_USER : WIZARD
+    FROM_NODE : GITHUB
+
+THE PDS FOLDER CONTAINS ALL MEMBERS THAT WILL BE PACKAGED INTO THE XMIT.
+EACH FILE IN THE FOLDER BECOMES A MEMBER OF THE PARTITIONED DATA SET.
+
+-------------------------------------------------------------------------------
+                         4. RELEASE ASSETS
+-------------------------------------------------------------------------------
+
+EACH RELEASE CONTAINS ONE ASSET:
+
+  GSUK26V.XMIT
+    A STANDARD Z/OS NETDATA / XMIT FILE CONTAINING THE GSUK26V PDS.
+    CAN BE RECEIVED ON Z/OS WITH THE RECEIVE COMMAND:
+      TSO RECEIVE INDATASET('HLQ.GSUK26V.XMIT')
+    OR OPENED LOCALLY WITH THE XMI-READER PYTHON LIBRARY.
+
+-------------------------------------------------------------------------------
+                         5. VERSIONING SCHEME
+-------------------------------------------------------------------------------
+
+  V<MAJOR>.<MINOR>
+
+  MINOR  : INCREMENTED AUTOMATICALLY ON EVERY PUSH TO MASTER
+  MAJOR  : INCREMENTED MANUALLY BY PUSHING A NEW VMAJOR.0 TAG
+
+  EXAMPLES:
+    V1.0  -> INITIAL RELEASE (CREATED MANUALLY)
+    V1.1  -> FIRST AUTO-BUILD AFTER V1.0
+    V1.2  -> SECOND AUTO-BUILD
+    V2.0  -> MANUALLY TRIGGERED MAJOR RELEASE
+    V2.1  -> NEXT AUTO-BUILD AFTER V2.0
+
+-------------------------------------------------------------------------------
+                            :: END OF RELEASE NOTES ::
+-------------------------------------------------------------------------------
