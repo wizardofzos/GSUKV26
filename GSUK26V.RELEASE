@@ -1,9 +1,9 @@
-# GSUK26V — Automated XMIT Packaging via GitHub Actions
+# GSUK26V -- Automated XMIT Packaging via GitHub Actions
 
 **Repo:** https://github.com/wizardofzos/GSUKV26
 
 Every push to `master` automatically builds a z/OS XMIT file and
-publishes it as a GitHub release — no manual tagging needed.
+publishes it as a GitHub release -- no manual tagging needed.
 
 ---
 
@@ -11,7 +11,7 @@ publishes it as a GitHub release — no manual tagging needed.
 
 Every push to `master` triggers a pipeline that:
 
-1. Computes the next version tag (e.g. `v1.0` → `v1.1` → `v1.2`)
+1. Computes the next version tag (e.g. `v1.0` -> `v1.1` -> `v1.2`)
 2. Creates and pushes that tag to GitHub
 3. Packages the PDS folder into a standard z/OS XMIT file
 4. Publishes a GitHub release with the XMIT as a downloadable asset
@@ -27,7 +27,7 @@ To bump the major version (e.g. `v2.0`), create that tag manually.
 
 Any commit pushed to master automatically starts the pipeline.
 
-### Step 1 — Checkout
+### Step 1 -- Checkout
 
 - Action: `actions/checkout@v6`
 - Option: `fetch-depth: 0`
@@ -37,7 +37,7 @@ Clones the full repository including all tags and history.
 version tags. Without it, `git tag` returns nothing and the version
 logic would always reset to `v1.0`.
 
-### Step 2 — Compute next version
+### Step 2 -- Compute next version
 
 Embedded bash script. Output: `steps.version.outputs.tag`
 
@@ -47,12 +47,12 @@ How it works:
    ```
    git tag --list 'v*.*' --sort=-version:refname | head -n 1
    ```
-2. If no tag exists → use `v1.0` as the starting point.
+2. If no tag exists -> use `v1.0` as the starting point.
 3. If a tag exists (e.g. `v1.2`): split on `.`, increment minor
-   → next tag = `v1.3`
+   -> next tag = `v1.3`
 4. Write the result to `$GITHUB_OUTPUT` for later steps to consume.
 
-### Step 3 — Create and push tag
+### Step 3 -- Create and push tag
 
 Configures git as `github-actions[bot]`, then:
 
@@ -65,28 +65,28 @@ This makes the release appear as a proper tagged version in the
 repo. The tag value comes from Step 2 via
 `${{ steps.version.outputs.tag }}`.
 
-### Step 4 — Set up Python 3.11
+### Step 4 -- Set up Python 3.11
 
 - Action: `actions/setup-python@v5`
 
 Installs a clean Python 3.11 runtime on the Ubuntu runner,
 required for the XMIT generation script.
 
-### Step 5 — Install dependencies
+### Step 5 -- Install dependencies
 
 Upgrades pip then installs:
 
-- `xmi-reader` — Python library for reading and creating z/OS
+- `xmi-reader` -- Python library for reading and creating z/OS
   XMIT files. See https://xmi.readthedocs.io
 
-### Step 6 — Generate XMIT
+### Step 6 -- Generate XMIT
 
 Runs `.github/scripts/generate_xmit.py`.
 
 See section 3 for details. Output file `GSUK26V.XMIT` is written
 to the repository root on the runner.
 
-### Step 7 — Create release
+### Step 7 -- Create release
 
 - Action: `softprops/action-gh-release@v2`
 
@@ -95,9 +95,9 @@ Publishes a GitHub release using the tag from steps 2 and 3.
 | Parameter   | Value                                         |
 |-------------|-----------------------------------------------|
 | `tag_name`  | Auto-computed version tag (e.g. `v1.3`)       |
-| `name`      | Same as tag — used as the release title       |
+| `name`      | Same as tag -- used as the release title       |
 | `body_path` | `GSUK26V.RELEASE` (this file)                 |
-| `files`     | `GSUK26V.XMIT` — attached as release asset   |
+| `files`     | `GSUK26V.XMIT` -- attached as release asset   |
 
 ---
 
@@ -108,8 +108,8 @@ Publishes a GitHub release using the tag from steps 2 and 3.
 
 | | |
 |---|---|
-| Input | `GSUK26V.PDS` — folder representing a Partitioned Data Set |
-| Output | `GSUK26V.XMIT` — standard z/OS XMIT / NETDATA file |
+| Input | `GSUK26V.PDS` -- folder representing a Partitioned Data Set |
+| Output | `GSUK26V.XMIT` -- standard z/OS XMIT / NETDATA file |
 
 Calls `create_xmi()` with `from_user=WIZARD`, `from_node=GITHUB`.
 
@@ -145,7 +145,7 @@ Examples:
 
 | Tag    | How                              |
 |--------|----------------------------------|
-| `v1.0` | Initial release — created manually |
+| `v1.0` | Initial release -- created manually |
 | `v1.1` | First auto-build after `v1.0`    |
 | `v1.2` | Second auto-build                |
 | `v2.0` | Manual major release             |
