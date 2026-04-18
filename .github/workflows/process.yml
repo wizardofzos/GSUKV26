@@ -57,5 +57,5 @@ jobs:
       with:
         tag_name: ${{ steps.version.outputs.tag }}
         name: ${{ steps.version.outputs.tag }}
-        body_path: RELEASE
+        body_path: GSUK26V.RELEASE
         files: GSUK26V.XMIT
