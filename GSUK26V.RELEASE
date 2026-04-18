@@ -1,6 +1,8 @@
-<<<<<<< HEAD
-This is the Release File......                                          00000100
-==============================                                          00000200
-=======
-GSUK26V - Demo repo
->>>>>>> 224e2fa7b4c5d44b91af538939f406cb7fbbe10a
+# GSUK26V
+XMIT Unpacked Bringing Mainframe Transmit Files into Modern Automation Pipelines
+
+This Demo repo shows as an example on how to build an XMI file automagically
+after every push to master.
+
+
+
