@@ -1,7 +1,6 @@
--------------------------------------------------------------------------------
                      X M I   P R E S E N T A T I O N
                    (z/OS 70-Column Terminal Edition)
--------------------------------------------------------------------------------
+
 SOURCE: https://xmi.readthedocs.io/en/latest/
 FORMAT: NETDATA / XMIT / AWS / HET concepts adapted
 STYLE : ISPF / TSO terminal simulation
